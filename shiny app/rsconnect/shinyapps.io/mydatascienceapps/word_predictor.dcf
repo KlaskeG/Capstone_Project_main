@@ -1,0 +1,11 @@
+name: word_predictor
+title: Word Predictor
+account: mydatascienceapps
+server: shinyapps.io
+appId: 243016
+bundleId: 1110693
+url: https://mydatascienceapps.shinyapps.io/word_predictor/
+when: 1512230118.35346
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: datashiny.RData|server1.R

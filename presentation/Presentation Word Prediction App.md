@@ -1,0 +1,48 @@
+Presentation Word Prediction App
+========================================================
+author: K. Grimmerink
+date: 03-12-2017
+autosize: true
+font-family: 'Helvetica'
+
+Objective
+========================================================
+
+###### For the final project of the Coursera Data Science course a word prediction application is build. The objective of this application is to predict the next word in a text, based on the previous word or words. The five most likely words are given as suggestion (https://mydatascienceapps.shinyapps.io/word_predictor) 
+![plot of chunk unnamed-chunk-1](./Application.png)
+
+
+
+Data
+========================================================
+
+A dataset is used with data from scraped from the internet:
+- training: 47202 tweets, 17985 blogs, 1545 news messages
+- test: 11800 tweets, 4496 blogs, 386 news messages
+
+The text is tokenized into 1-grams (single words), 2-grams (2 consecutive words), 3-grams and 4-grams:
+- Numbers, punctuations and symbols are removed. 
+- End-of-sentence and start-of-line are added. Distiguish between the first words in a message (no connection to previous words) and the first words of a sentence following another sentence in the same message. 
+- Words and n-grams removed with misspelled or non-excisting words.
+
+Model
+========================================================
+
+The used model for the word prediction is a Back-off model, that uses a combination of 4-grams, 3-grams and 2-grams models. 
+
+It starts with the best suggestions out of the quartets of words, where the 4th word is predicted based on the previous 3 words (if present). If not enough information is present
+the model turns to the triplets, and then to the word pairs. If there is still not enough information, the most frequent single words in the trainingset are given as suggestion.
+
+The testset is used to test the performance of the model. The accuracy is measured as the percentage of observed words that are given as suggestion in the first 3 or 5 suggestions. 
+
+Performance and Recommendations
+========================================================
+
+* 1 word input: 23% in top 3, 29% in top 5 suggestions
+* 2 word input: 28% in top 3, 34% in top 5 suggestions
+* 3 or more words input: 26% in top 3, 31% in top 5 suggestions
+
+This is not a very good performance. Predicting language is very difficult, because there are so many options. The trainingset seems to be too small to contain the most possible combinations of words, especially for the 4-gram model. Further possible actions that can improve the results are:
+* More sophisticated smoothing
+* Adding components for sentence structure
+* Adding other sources of text

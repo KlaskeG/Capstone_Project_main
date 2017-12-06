@@ -1,0 +1,157 @@
+---
+title: "Milestone report word prediction app"
+author: K. Grimmerink  
+date: "19-02-2017"
+output:  
+      html_document:  
+        keep_md: true  
+---  
+
+## Overview
+In this report the first findings and directions to develop a word prediction application are presented.The available dataset is explored and the steps and choices that are made are explained.
+
+
+## Loading of the data
+Three datasets are available, with Twitter, blogs and newsmessages on internet.
+```{r,echo=TRUE,message=FALSE, warning=FALSE}
+con <- file("en_US.twitter.txt", "r") 
+twitter<-readLines(con)
+close(con)
+con <- file("en_US.blogs.txt", "r") 
+blogs<-readLines(con)
+close(con)
+con <- file("en_US.news.txt", "r") 
+news<-readLines(con)
+close(con)
+```
+
+The twitter dataset has the most lines, with more than 2 million lines.These are the shortest messages.
+```{r,echo=TRUE}
+length(twitter)
+length(blogs)
+length(news)
+```
+
+Using all the data would take to much processing time, that's why I take a subset to train and test the data on. I take a 50th part of all the data.
+```{r,echo=TRUE,message=FALSE, warning=FALSE}
+set.seed(1000)
+id_twitter<-sample(1:length(twitter),size=length(twitter)/50,replace=FALSE)
+twitter_train<-twitter[id_twitter]
+twitter_test<-twitter[-id_twitter]
+set.seed(2000)
+id_blogs<-sample(1:length(blogs),size=length(blogs)/50,replace=FALSE)
+blogs_train<-blogs[id_blogs]
+blogs_test<-blogs[-id_blogs]
+set.seed(3000)
+id_news<-sample(1:length(news),size=length(news)/50,replace=FALSE)
+news_train<-news[id_news]
+news_test<-news[-id_news]
+```
+
+##Making and exploring n-grams
+With the quanteda package the 3 trainingsets are combined in a corpus and tokenized. I added end-of-sentence marks and start-of-line marks in the data, so I can see the difference between the first words in a message, which have no connection to the words seen before in another message, and the first words of a sentence following another sentence in the same message, here there is a connection. In the tokenizing procedure, numbers, punctuation and symbols are removed.
+
+```{r,echo=FALSE,message=FALSE, warning=FALSE}
+library(quanteda)
+library(dplyr)
+library(tictoc)
+dfm_tot<-readRDS("20170206dfm_tot.RDS")
+dfm_tot_2gram<-readRDS("20170207dfm_tot_2gram.RDS")
+dfm_tot_3gram<-readRDS("20170207dfm_tot_3gram.RDS")
+dfm_tot_4gram<-readRDS("20170207dfm_tot_4gram.RDS")
+topwords_tot<-data.frame(text=names(topfeatures(dfm_tot,dfm_tot@Dim[2])),Ncount=topfeatures(dfm_tot,dfm_tot@Dim[2]))
+sumtot<-summarise(topwords_tot,sum(Ncount)) #10521 (gelijk aan aantal features)
+topwords_tot<-mutate(topwords_tot,perc=Ncount*100/as.numeric(sumtot))
+topwords_tot$csum<-cumsum(topwords_tot$perc) 
+topwords_tot_2gram<-data.frame(text=names(topfeatures(dfm_tot_2gram,dfm_tot_2gram@Dim[2])),Ncount=topfeatures(dfm_tot_2gram,dfm_tot_2gram@Dim[2]))
+sumtot<-summarise(topwords_tot_2gram,sum(Ncount)) #(gelijk aan aantal features)
+topwords_tot_2gram<-mutate(topwords_tot_2gram,perc=Ncount*100/as.numeric(sumtot))
+topwords_tot_2gram$csum<-cumsum(topwords_tot_2gram$perc) 
+topwords_tot_3gram<-data.frame(text=names(topfeatures(dfm_tot_3gram,dfm_tot_3gram@Dim[2])),Ncount=topfeatures(dfm_tot_3gram,dfm_tot_3gram@Dim[2]))
+sumtot<-summarise(topwords_tot_3gram,sum(Ncount)) #(gelijk aan aantal features)
+topwords_tot_3gram<-mutate(topwords_tot_3gram,perc=Ncount*100/as.numeric(sumtot))
+topwords_tot_3gram$csum<-cumsum(topwords_tot_3gram$perc) 
+topwords_tot_4gram<-data.frame(text=names(topfeatures(dfm_tot_4gram,dfm_tot_4gram@Dim[2])),Ncount=topfeatures(dfm_tot_4gram,dfm_tot_4gram@Dim[2]))
+sumtot<-summarise(topwords_tot_4gram,sum(Ncount)) #(gelijk aan aantal features)
+topwords_tot_4gram<-mutate(topwords_tot_4gram,perc=Ncount*100/as.numeric(sumtot))
+topwords_tot_4gram$csum<-cumsum(topwords_tot_4gram$perc) 
+
+```
+
+Let's first have a look at the words in the dataset. The number of identical words in the dataset is:
+```{r,echo=FALSE}
+nrow(topwords_tot)
+```
+
+So there are over 85.000 unique words in the dataset. How many words do we need to cover 50% of all the words in the data, and how many for 80%?
+```{r,echo=FALSE}
+which(topwords_tot$csum > 50)[1]
+which(topwords_tot$csum > 80)[1]
+```
+
+As we see in the plot below, the coverage percentage increases very fast up to 80%. So we don't need so many words to have a good coverage of the complete set.
+
+```{r,echo=FALSE}
+plot(1:nrow(topwords_tot),topwords_tot$csum,main="Coverage by number of words",xlab="number of words", ylab="Percentage of total text covered")
+plot(topwords_tot$perc[1:20], type="b",main="Top 20 features in total corpus",
+     xlab="", ylab="Percentage of Full Text", xaxt ="n",cex.lab=1, cex.axis=1)
+axis(1, 1:20, labels = topwords_tot$text[1:20],las=2,cex.axis=0.7)
+
+```
+
+Now we're going to have a look to the 2-grams. The number of identical 2-grams in the dataset is:
+```{r,echo=FALSE}
+nrow(topwords_tot_2gram)
+```
+
+So there are over 600.000 unique 2-grams in the dataset. That is a lot more than the 1-grams (words). How many 2-grams do we need to cover 50% of all the 2-grams in the data, and how many for 80%?
+```{r,echo=FALSE}
+which(topwords_tot_2gram$csum > 50)[1]
+which(topwords_tot_2gram$csum > 80)[1]
+```
+
+We see here that there are also a lot more 2-grams needed to have a coverage of 50% or 80%. The plot also shows this.
+
+```{r,echo=FALSE}
+plot(1:nrow(topwords_tot_2gram),topwords_tot_2gram$csum,main="Coverage by 2-grams",xlab="Number of 2-grams",ylab="Percentage of total text covered")
+par(mar=c(8.1,4.1,4.1,2.1))
+plot(topwords_tot_2gram$perc[1:20], type="b",main="Top 20 2-grams in total corpus",
+     xlab="", ylab="Percentage of Full Text", xaxt ="n",cex.lab=1, cex.axis=1)
+axis(1, 1:20, labels = topwords_tot_2gram$text[1:20],las=2,cex.axis=0.55)
+```
+
+We have 1.2 milion 3-grams in the dataset and we see that there are a lot of low counts. Therefore a lot of 3-grams are necessary to get a coverage of 50% or 80%. See also the plot below.
+
+```{r,echo=FALSE}
+plot(1:nrow(topwords_tot_3gram),topwords_tot_3gram$csum,main="Coverage by 3-grams",xlab="Number of 3-grams",ylab="Percentage of total text covered")
+par(mar=c(8.1,4.1,4.1,2.1))
+plot(topwords_tot_3gram$perc[1:20], type="b",main="Top 20 3-grams in total corpus",
+     xlab="", ylab="Percentage of Full Text", xaxt ="n",cex.lab=1, cex.axis=1)
+axis(1, 1:20, labels = topwords_tot_3gram$text[1:20],las=2,cex.axis=0.55)
+
+```
+
+For the 4-grams the situation is even more sparse. There is not enough data to have enough coverage. So in an application, smoothing is absolutely necessary to deal with unseen n-grams.
+
+```{r,echo=FALSE}
+plot(1:nrow(topwords_tot_4gram),topwords_tot_4gram$csum,main="Coverage by 4-grams",xlab="Number of 4-grams",ylab="Percentage of total text covered")
+par(mar=c(8.1,4.1,4.1,2.1))
+plot(topwords_tot_4gram$perc[1:20], type="b",main="Top 20 4-grams in total corpus",
+     xlab="", ylab="Percentage of Full Text", xaxt ="n",cex.lab=1, cex.axis=1)
+axis(1, 1:20, labels = topwords_tot_4gram$text[1:20],las=2,cex.axis=0.55)
+
+```
+
+## Issues in the data
+The data is obtained by internet scraping. There are a lot of errors in the datasets: characters that are not recognized, misspelled words, etc. Because there is no use to predict non-existing words I choose to remove all words and n-grams that are not english words. For that I use an english wordlist and check all the occurring words in the dataset. This wordlist is my vocabulary list.
+
+## Further thoughts about the modeling steps
+I'm building a n-gram model that predicts the next word following the previous n-1 words. I'm looking for the word that has the highest probability to follow these n-1 words. I use the constructed training set to train the model. To choose the order of the model (n) I calculate the perplexity for each model through cross-validation. The perplexity measures the quality of the model, the lower the perplexity the higher the probabilities in the cross-validation set. For higher order n, the perplexity will get lower. But the processing time will alse increase, so we need to balance a good quality with fast processing.
+
+We saw in the plots that data sparsity is an issue here, the coverage is not high enough to see all the possible n-grams in the training set. We need to find a solution for n-grams that are not in the training set, the unseen words. In order to do this, I need to do smoothing. In the smoothing I'll use lower order n-grams when there is not enough information about the higher order n-gram. 
+
+
+
+
+
+
